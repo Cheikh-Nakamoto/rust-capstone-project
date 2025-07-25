@@ -6,7 +6,7 @@ npm install
 set -e  # Exit immediately if any command fails
 
 # Spawn Bitcoind, and provide execution permission.
-docker compose up -d
+sudo docker compose up -d
 sleep 10
 
 echo "Waiting for bitcoind to be fully initialized..."
