@@ -1,8 +1,8 @@
 #!/bin/bash
 
 echo "🛑 Stopping all Bitcoin Core processes..."
-pkill -f bitcoind 2>/dev/null || true
-pkill -f bitcoin-qt 2>/dev/null || true
+sudo pkill -f bitcoind 2>/dev/null || true
+sudo pkill -f bitcoin-qt 2>/dev/null || true
 
 # Wait for processes to completely stop
 echo "⏳ Waiting for processes to stop..."
@@ -11,7 +11,7 @@ sleep 5
 # Check if processes are still running
 if pgrep -f bitcoin > /dev/null; then
     echo "⚠️  Force killing remaining Bitcoin processes..."
-    pkill -9 -f bitcoin
+   sudo pkill -9 -f bitcoin
     sleep 3
 fi
 
@@ -20,7 +20,7 @@ echo "🧹 Cleaning Bitcoin regtest data directory..."
 # Remove the entire regtest directory (this removes all wallets and blockchain data)
 if [ -d ~/.bitcoin/regtest ]; then
     echo "📁 Removing ~/.bitcoin/regtest directory..."
-    rm -rf ~/.bitcoin/regtest
+   sudo rm -rf ~/.bitcoin/regtest
     echo "✅ Regtest directory removed"
 else
     echo "ℹ️  No regtest directory found"

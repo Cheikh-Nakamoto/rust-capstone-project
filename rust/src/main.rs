@@ -1,6 +1,6 @@
 #![allow(unused)]
 use bitcoin::hex::DisplayHex;
-use bitcoin::{transaction};
+use bitcoin::transaction;
 use bitcoincore_rpc::bitcoin::{Amount, BlockHash, Txid};
 use bitcoincore_rpc::{Auth, Client, RpcApi};
 use serde::Deserialize;
@@ -10,7 +10,7 @@ use std::io::Write;
 use std::str::FromStr;
 mod utils; // This declares the 'utils' module
 use crate::utils::transaction_data::TransactionData;
-use crate::utils::utils::{
+use crate::utils::utility::{
     create_client_for_wallet, ensure_wallet, generate_spendable_balance, send_20_btc_to,
     write_transaction_to_file,
 };
@@ -53,7 +53,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Get blockchain info
     let blockchain_info = rpc.get_blockchain_info()?;
-    println!("Blockchain Info: {:?}", blockchain_info);
+    println!("Blockchain Info: {blockchain_info:?}");
     //====================================================================
 
     // Create/Load the wallets with error handling
@@ -64,6 +64,14 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Generate spendable balances in the Miner wallet
     println!("<=================Creation de Balance========================>");
 
+    //<======================================test=======================================+++>
+    //  let miner_client = create_client_for_wallet("Miner")?;
+    // let tx_id = Txid::from_str("755a21e765da55b9e80af29107cdc3db188d22d6daacc0a85b51f9b2c6236d87").expect("dhcbhdbcqsdcjnqnsd");
+    // let transaction_info = miner_client.get_raw_transaction(&tx_id, None)?;
+    // let output = transaction_info.output;
+
+    // println!("{:?}",output.get(0).expect("azerty").value.to_btc());
+    //<=======================================fin test==================================++++>
     // Create a client for the Miner wallet
     println!("Loading Miner wallet client...");
     // Create wallet-specific clients
@@ -78,23 +86,22 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let trader_client = create_client_for_wallet("Trader")?;
     println!("Generating new address for Trader wallet...");
     let trader_wallet_info = trader_client.get_wallet_info()?;
-    println!("Trader wallet info: {:?}", trader_wallet_info);
+    println!("Trader wallet info: {trader_wallet_info:?}");
     let trader_address = trader_client.get_new_address(None, None)?;
-    println!("Trader's new address: {}", trader_address.assume_checked());
+    println!("Trader's new address: {trader_address:?}");
 
     // Send 20 BTC from Miner to Trader
-    let tx_id = send_20_btc_to(&trader_client,&miner_client, 20, &mut transaction_data)?;
+    let tx_id = send_20_btc_to(&trader_client, &miner_client, 20, &mut transaction_data)?;
 
     // Check spendable balance
     let balance = trader_client.get_balance(Some(0), None)?;
     println!(
-        "Solde dépensable traders before mempool confirmation : {}",
-        balance
+        "Solde dépensable traders before mempool confirmation : {balance}"
     );
 
     // Check transaction in mempool
     let mempool = rpc.get_raw_mempool()?;
-    println!("Mempool transactions: {:?}", mempool);
+    println!("Mempool transactions: {mempool:?}");
 
     // Mine 1 block to confirm the transaction
     println!("Minage d'un bloc pour confirmer la transaction...");
@@ -103,16 +110,19 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Extract all required transaction details
     //load the trader wallet to get the balance after the transaction
     println!("Loading Trader wallet to check balance after transaction...");
-    
+
     let balance_after = trader_client.get_balance(Some(0), None)?;
     println!(
-        "Trader's balance after mempool confirmation: {}",
-        balance_after
+        "Trader's balance after mempool confirmation: {balance_after}"
     );
 
     // Check the transaction ID
-    println!("Transaction ID: {}", tx_id);
+    println!("Transaction ID: {tx_id}");
 
+
+    // last verification of the transaction data
+    println!("<=================Verification des donnees de la transaction========================>");
+    println!("{transaction_data:?}");
     // Write the data to ../out.txt in the specified format given in readme.md
     println!("<=================Ecriture dans le fichier========================>");
     write_transaction_to_file(&transaction_data)?;
