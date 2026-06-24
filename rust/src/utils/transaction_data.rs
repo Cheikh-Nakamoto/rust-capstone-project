@@ -13,11 +13,6 @@ pub struct TransactionData {
 }
 
 impl TransactionData {
-    // Constructeur vide
-    pub fn new() -> Self {
-        TransactionData::default()
-    }
-
     // Méthodes pour définir chaque champ individuellement
     pub fn set_transaction_id(&mut self, transaction_id: String) {
         self.transaction_id = transaction_id;
@@ -72,36 +67,6 @@ impl TransactionData {
             self.transaction_fees.clone(),
             self.block_height.clone(),
             self.block_hash.clone(),
-        ]
-    }
-
-    // Méthode pour vérifier si tous les champs sont remplis
-    pub fn is_complete(&self) -> bool {
-        !self.transaction_id.is_empty()
-            && !self.miner_input_address.is_empty()
-            && !self.miner_input_amount.is_empty()
-            && !self.trader_output_address.is_empty()
-            && !self.trader_output_amount.is_empty()
-            && !self.miner_change_address.is_empty()
-            && !self.miner_change_amount.is_empty()
-            && !self.transaction_fees.is_empty()
-            && !self.block_height.is_empty()
-            && !self.block_hash.is_empty()
-    }
-
-    // Méthode pour obtenir les noms des champs dans l'ordre
-    pub fn field_names() -> Vec<&'static str> {
-        vec![
-            "transaction_id",
-            "miner_input_address",
-            "miner_input_amount",
-            "trader_output_address",
-            "trader_output_amount",
-            "miner_change_address",
-            "miner_change_amount",
-            "transaction_fees",
-            "block_height",
-            "block_hash",
         ]
     }
 }
