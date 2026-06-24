@@ -25,11 +25,10 @@ pub fn generate_spendable_balance(
     // Le README impose le label "Mining Reward" pour l'adresse de minage.
     let miner_address = rpc.get_new_address(Some("Mining Reward"), None)?;
 
-    // La première adresse générée sert d'entrée ; les suivantes servent de change.
+    // La première adresse générée sert d'adresse d'entrée du Miner. On ne touche
+    // pas au change ici : il est déterminé par la transaction dans `send_20_btc_to`.
     if transaction_data.miner_input_address.is_empty() {
         transaction_data.set_miner_input_address(miner_address.assume_checked_ref().to_string());
-    } else {
-        transaction_data.set_miner_change_address(miner_address.assume_checked_ref().to_string());
     }
 
     let adresse = miner_address.assume_checked();
