@@ -4,8 +4,8 @@ use serde_json::json;
 mod utils; // This declares the 'utils' module
 use crate::utils::transaction_data::TransactionData;
 use crate::utils::utility::{
-    create_client_for_wallet, ensure_wallet, generate_spendable_balance, send_20_btc_to,
-    write_transaction_to_file,
+    confirm_transaction, create_client_for_wallet, ensure_wallet, generate_spendable_balance,
+    send_20_btc_to, write_transaction_to_file,
 };
 
 // Node access params
@@ -54,12 +54,12 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let miner_client = create_client_for_wallet("Miner")?;
     let trader_client = create_client_for_wallet("Trader")?;
 
-    // Pourquoi 101 blocs ? La récompense de bloc (coinbase) est soumise à la règle
-    // de maturité : une sortie coinbase ne devient dépensable qu'après 100
-    // confirmations. En minant 101 blocs, le coinbase du bloc 1 obtient ses 100
-    // confirmations (blocs 2..=101) et devient donc dépensable : le solde passe de 0
-    // à 50 BTC. Les 100 blocs les plus récents restent immatures, d'où ce solde de 50.
-    generate_spendable_balance(&miner_client, 101, &mut transaction_data)?;
+    // Miner jusqu'à obtenir un solde dépensable. Pourquoi faut-il ~101 blocs ? La
+    // récompense de bloc (coinbase) est soumise à la règle de maturité : une sortie
+    // coinbase ne devient dépensable qu'après 100 confirmations. Le coinbase du bloc 1
+    // n'est donc dépensable qu'au bloc 101, où le solde passe de 0 à 50 BTC ; les 100
+    // blocs les plus récents restent immatures.
+    generate_spendable_balance(&miner_client, &mut transaction_data)?;
 
     // Envoyer 20 BTC du Miner au Trader.
     let tx_id = send_20_btc_to(&trader_client, &miner_client, 20, &mut transaction_data)?;
@@ -67,12 +67,14 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let balance = trader_client.get_balance(Some(0), None)?;
     println!("Solde dépensable du Trader avant confirmation : {balance}");
 
-    // Récupérer la transaction non confirmée depuis la mempool.
+    // Récupérer la transaction non confirmée depuis la mempool et afficher son entrée.
     let mempool = rpc.get_raw_mempool()?;
     println!("Mempool transactions: {mempool:?}");
+    let mempool_entry = rpc.get_mempool_entry(&tx_id)?;
+    println!("Entrée mempool de {tx_id} : {mempool_entry:?}");
 
     // Confirmer la transaction en minant 1 bloc.
-    generate_spendable_balance(&miner_client, 1, &mut transaction_data)?;
+    confirm_transaction(&miner_client, &mut transaction_data)?;
 
     let balance_after = trader_client.get_balance(Some(0), None)?;
     println!("Solde du Trader après confirmation : {balance_after}");

@@ -27,32 +27,40 @@ pub fn create_client_for_wallet(wallet_name: &str) -> bitcoincore_rpc::Result<Cl
 
 pub fn generate_spendable_balance(
     rpc: &Client,
-    value: u64,
     transaction_data: &mut TransactionData,
 ) -> bitcoincore_rpc::Result<()> {
     // Le README impose le label "Mining Reward" pour l'adresse de minage.
     let miner_address = check_regtest(rpc.get_new_address(Some("Mining Reward"), None)?)?;
+    transaction_data.set_miner_input_address(miner_address.to_string());
 
-    // La première adresse générée sert d'adresse d'entrée du Miner. On ne touche
-    // pas au change ici : il est déterminé par la transaction dans `send_20_btc_to`.
-    if transaction_data.miner_input_address.is_empty() {
-        transaction_data.set_miner_input_address(miner_address.to_string());
-    }
-
-    let block_hashes = rpc.generate_to_address(value, &miner_address)?;
-    // Quand on ne mine qu'un seul bloc, c'est le bloc de confirmation de la transaction :
-    // on enregistre sa hauteur et son hash.
-    if block_hashes.len() == 1 {
-        transaction_data.set_block_hash(block_hashes[0].to_string());
-        let block_height = rpc.get_block_count()?;
-        transaction_data.set_block_height(block_height.to_string());
+    // Miner bloc par bloc (generatetoaddress) jusqu'à obtenir un solde dépensable
+    // positif. Le coinbase est soumis à la règle de maturité (100 confirmations) :
+    // il faut donc 101 blocs pour que la récompense du bloc 1 devienne dépensable.
+    let mut mined = 0;
+    while rpc.get_balance(None, None)?.to_sat() == 0 {
+        rpc.generate_to_address(1, &miner_address)?;
+        mined += 1;
     }
 
     let balance = rpc.get_balance(None, None)?;
-    if transaction_data.miner_input_amount.is_empty() {
-        transaction_data.set_miner_input_amount(format!("{}", balance.to_btc()));
-    }
-    println!("Solde dépensable du Mineur : {balance}");
+    transaction_data.set_miner_input_amount(format!("{}", balance.to_btc()));
+    println!("Solde dépensable du Mineur : {balance} (obtenu après {mined} blocs)");
+
+    Ok(())
+}
+
+/// Mine 1 bloc pour confirmer la transaction et enregistre la hauteur et le hash
+/// du bloc de confirmation.
+pub fn confirm_transaction(
+    rpc: &Client,
+    transaction_data: &mut TransactionData,
+) -> bitcoincore_rpc::Result<()> {
+    let miner_address = check_regtest(rpc.get_new_address(Some("Mining Reward"), None)?)?;
+    let block_hashes = rpc.generate_to_address(1, &miner_address)?;
+
+    transaction_data.set_block_hash(block_hashes[0].to_string());
+    let block_height = rpc.get_block_count()?;
+    transaction_data.set_block_height(block_height.to_string());
 
     Ok(())
 }
