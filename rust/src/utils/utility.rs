@@ -9,6 +9,14 @@ use std::io::Write;
 
 use crate::utils::transaction_data::TransactionData;
 
+/// Valide qu'une adresse appartient bien au réseau regtest et la renvoie en
+/// version vérifiée. `require_network` renvoie un `bitcoin::address::Error`, non
+/// convertible automatiquement par `?`, d'où le `map_err`.
+fn check_regtest(addr: Address<NetworkUnchecked>) -> bitcoincore_rpc::Result<Address> {
+    addr.require_network(Network::Regtest)
+        .map_err(|e| bitcoincore_rpc::Error::ReturnedError(e.to_string()))
+}
+
 pub fn create_client_for_wallet(wallet_name: &str) -> bitcoincore_rpc::Result<Client> {
     let wallet_rpc = Client::new(
         format!("http://127.0.0.1:18443/wallet/{wallet_name}").as_str(),
@@ -23,16 +31,15 @@ pub fn generate_spendable_balance(
     transaction_data: &mut TransactionData,
 ) -> bitcoincore_rpc::Result<()> {
     // Le README impose le label "Mining Reward" pour l'adresse de minage.
-    let miner_address = rpc.get_new_address(Some("Mining Reward"), None)?;
+    let miner_address = check_regtest(rpc.get_new_address(Some("Mining Reward"), None)?)?;
 
     // La première adresse générée sert d'adresse d'entrée du Miner. On ne touche
     // pas au change ici : il est déterminé par la transaction dans `send_20_btc_to`.
     if transaction_data.miner_input_address.is_empty() {
-        transaction_data.set_miner_input_address(miner_address.assume_checked_ref().to_string());
+        transaction_data.set_miner_input_address(miner_address.to_string());
     }
 
-    let adresse = miner_address.assume_checked();
-    let block_hashes = rpc.generate_to_address(value, &adresse)?;
+    let block_hashes = rpc.generate_to_address(value, &miner_address)?;
     // Quand on ne mine qu'un seul bloc, c'est le bloc de confirmation de la transaction :
     // on enregistre sa hauteur et son hash.
     if block_hashes.len() == 1 {
@@ -57,17 +64,18 @@ pub fn send_20_btc_to(
     transaction_data: &mut TransactionData,
 ) -> bitcoincore_rpc::Result<Txid> {
     // Adresse de réception du Trader (label "Received" requis par le README).
-    let trader_address = trader_rpc.get_new_address(Some("Received"), None)?;
-    transaction_data.set_trader_output_address(trader_address.assume_checked_ref().to_string());
+    let trader_address = check_regtest(trader_rpc.get_new_address(Some("Received"), None)?)?;
+    transaction_data.set_trader_output_address(trader_address.to_string());
 
     // Adresse de change du Miner (mise à jour plus bas avec celle réellement utilisée).
-    let change_address =
-        miner_rpc.get_raw_change_address(Some(bitcoincore_rpc::json::AddressType::Legacy))?;
-    transaction_data.set_miner_change_address(change_address.assume_checked_ref().to_string());
+    let change_address = check_regtest(
+        miner_rpc.get_raw_change_address(Some(bitcoincore_rpc::json::AddressType::Legacy))?,
+    )?;
+    transaction_data.set_miner_change_address(change_address.to_string());
 
     // Envoyer `value` BTC du Miner au Trader.
     let txid = miner_rpc.send_to_address(
-        &trader_address.clone().assume_checked(),
+        &trader_address,
         Amount::from_btc(value as f64)?,
         None,
         None,
@@ -89,8 +97,8 @@ pub fn send_20_btc_to(
 
     // Décoder la transaction pour identifier l'output de change du Miner.
     let decoded = miner_rpc.decode_raw_transaction(&tx_info.hex, None)?;
-    let trader_addr_str = trader_address.assume_checked_ref().to_string();
-    let miner_change_addr_str = change_address.assume_checked_ref().to_string();
+    let trader_addr_str = trader_address.to_string();
+    let miner_change_addr_str = change_address.to_string();
 
     for vout in &decoded.vout {
         let output_addr_str_opt = if let Some(addr) = &vout.script_pub_key.address {
