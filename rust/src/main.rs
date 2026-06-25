@@ -17,7 +17,7 @@ const RPC_PASS: &str = "password";
 // fonction générique `call`, avec désérialisation du résultat via serde.
 #[allow(dead_code)]
 fn send(rpc: &Client, addr: &str, amount_btc: f64) -> bitcoincore_rpc::Result<String> {
-    //  adresse: montant_en_btc est le seul a changer de manierer generique le reste comme 
+    //  adresse: montant_en_btc est le seul a changer de manierer generique le reste comme
     // conf_target / estimate_mode / fee_rate / options gardent leurs valeurs par défaut.
     let args = [json!([{ addr: amount_btc }])];
 
