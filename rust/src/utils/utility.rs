@@ -95,10 +95,16 @@ pub fn send_20_btc_to(
     transaction_data.set_transaction_id(txid.to_string());
     transaction_data.set_trader_output_amount(format!("{value}"));
 
-    // Laisser la transaction entrer dans la mempool avant de lire les frais.
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
-    let tx_info: GetTransactionResult = miner_rpc.get_transaction(&txid, Some(true))?;
+    // Attendre que la transaction soit enregistrée dans la mempool et que les
+    // frais soient renseignés, plutôt qu'un délai fixe arbitraire.
+    let mut tx_info: GetTransactionResult = miner_rpc.get_transaction(&txid, Some(true))?;
+    for _ in 0..50 {
+        if tx_info.fee.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        tx_info = miner_rpc.get_transaction(&txid, Some(true))?;
+    }
     if let Some(fee) = tx_info.fee {
         transaction_data.set_transaction_fees(format!("{:e}", fee.to_btc()));
     }
@@ -139,7 +145,8 @@ pub fn send_20_btc_to(
             transaction_data.set_miner_change_amount(format!("{}", vout.value.to_btc()));
         } else if let Ok(check_addr) = output_addr_str.parse::<Address<NetworkUnchecked>>() {
             // `send_to_address` génère sa propre adresse de change : on détecte
-            // l'output qui appartient au Miner et on enregistre l'adresse réelle.
+            // l'output qui appartient au Miner et on enregistre l'adresse réelle
+            // de change et le montant correspondant.
             let addr = check_addr.assume_checked_ref();
             if let Ok(addr_info) = miner_rpc.get_address_info(addr) {
                 if addr_info.is_mine == Some(true) {

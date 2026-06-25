@@ -17,7 +17,7 @@ const RPC_PASS: &str = "password";
 // fonction générique `call`, avec désérialisation du résultat via serde.
 #[allow(dead_code)]
 fn send(rpc: &Client, addr: &str, amount_btc: f64) -> bitcoincore_rpc::Result<String> {
-    // Seul argument positionnel : le tableau `outputs` `[{ adresse: montant_en_btc }]`.
+    //  adresse: montant_en_btc est le seul a changer de manierer generique le reste comme 
     // conf_target / estimate_mode / fee_rate / options gardent leurs valeurs par défaut.
     let args = [json!([{ addr: amount_btc }])];
 
@@ -54,7 +54,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
     let miner_client = create_client_for_wallet("Miner")?;
     let trader_client = create_client_for_wallet("Trader")?;
 
-    // Miner jusqu'à obtenir un solde dépensable. Pourquoi faut-il ~101 blocs ? La
+    // Miner jusqu'à obtenir un solde dépensable. Pourquoi faut-il >= 101 blocs  ? La
     // récompense de bloc (coinbase) est soumise à la règle de maturité : une sortie
     // coinbase ne devient dépensable qu'après 100 confirmations. Le coinbase du bloc 1
     // n'est donc dépensable qu'au bloc 101, où le solde passe de 0 à 50 BTC ; les 100
@@ -63,7 +63,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Envoyer 20 BTC du Miner au Trader.
     let tx_id = send_20_btc_to(&trader_client, &miner_client, 20, &mut transaction_data)?;
-
+    // récupérer le solde du Trader avant confirmation de la transaction.
     let balance = trader_client.get_balance(Some(0), None)?;
     println!("Solde dépensable du Trader avant confirmation : {balance}");
 
@@ -75,8 +75,8 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Confirmer la transaction en minant 1 bloc.
     confirm_transaction(&miner_client, &mut transaction_data)?;
-
-    let balance_after = trader_client.get_balance(Some(0), None)?;
+    // récupérer le solde du Trader après confirmation de la transaction.
+    let balance_after = trader_client.get_balance(Some(1), None)?;
     println!("Solde du Trader après confirmation : {balance_after}");
     println!("Transaction ID: {tx_id}");
 
